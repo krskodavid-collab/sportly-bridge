@@ -286,6 +286,48 @@ async function handleCommand(
         data = { added: true, team, points };
         break;
       }
+      case "isapi-proxy": {
+        // HTTP tunnel cez Bridge na lokálnu kameru.
+        // Sportly admin → cloud → Bridge → Hikvision web UI / ISAPI.
+        // Umožňuje Dávidovi kalibrovať ihrisko a robiť advanced nastavenia
+        // bez fyzickej návštevy klubu.
+        const proxyMethod = String(params?.method ?? "GET");
+        const proxyPath = String(params?.path ?? "/");
+        const proxyBody = params?.body as string | undefined;
+        const proxyHeaders = (params?.headers ?? {}) as Record<string, string>;
+
+        // URL na kameru
+        const targetUrl = `http://${process.env.CAMERA_HOST ?? "192.168.1.86"}${proxyPath}`;
+
+        try {
+          // Použi cameraClient internal fetch (digest auth handled)
+          const camResponse = await (cameraClient as any).client.fetch(targetUrl, {
+            method: proxyMethod,
+            headers: proxyHeaders,
+            body: proxyBody,
+          });
+          const buf = await camResponse.arrayBuffer();
+          const responseHeaders: Record<string, string> = {};
+          camResponse.headers.forEach((v: string, k: string) => {
+            responseHeaders[k] = v;
+          });
+          data = {
+            status: camResponse.status,
+            headers: responseHeaders,
+            // Binary-safe: base64 encoding
+            bodyBase64: Buffer.from(buf).toString("base64"),
+            contentType: camResponse.headers.get("content-type") ?? "application/octet-stream",
+          };
+        } catch (err) {
+          data = {
+            status: 502,
+            headers: {},
+            bodyBase64: Buffer.from(`Bridge proxy error: ${(err as Error).message}`).toString("base64"),
+            contentType: "text/plain",
+          };
+        }
+        break;
+      }
       case "download":
         // Stiahne oba tracky z kamery (lokálne), prekonvertuje, uploadne na cloud
         data = await handleDownload(

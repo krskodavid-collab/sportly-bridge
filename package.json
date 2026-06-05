@@ -1,0 +1,13 @@
+{
+  "name": "sportly-bridge-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "pnpm --filter @sportly/bridge start",
+    "dev": "pnpm --filter @sportly/bridge dev"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
